@@ -177,6 +177,11 @@ export async function deleteFatura(id: string, imagemPath?: string | null) {
   if (error) throw error;
 }
 
+export async function deleteItem(itemId: string) {
+  const { error } = await supabase.from("itens_fatura").delete().eq("id", itemId);
+  if (error) throw error;
+}
+
 // ---- Itens ----
 
 export function useItensByObra(obraId: string) {
