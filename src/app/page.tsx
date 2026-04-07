@@ -23,10 +23,18 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <StatCard label="Obras" value={obras ?? 0} color="bg-blue-500" />
-        <StatCard label="Faturas" value={faturas ?? 0} color="bg-green-500" />
-        <StatCard label="Itens atribuidos" value={itensAtribuidos ?? 0} color="bg-purple-500" />
-        <StatCard label="Itens pendentes" value={itensPendentes ?? 0} color="bg-orange-500" />
+        <Link href="/obras">
+          <StatCard label="Obras" value={obras ?? 0} color="bg-blue-500" />
+        </Link>
+        <Link href="/faturas">
+          <StatCard label="Faturas" value={faturas ?? 0} color="bg-green-500" />
+        </Link>
+        <Link href="/faturas">
+          <StatCard label="Itens atribuidos" value={itensAtribuidos ?? 0} color="bg-purple-500" />
+        </Link>
+        <Link href="/faturas">
+          <StatCard label="Itens pendentes" value={itensPendentes ?? 0} color="bg-orange-500" />
+        </Link>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -54,7 +62,7 @@ export default function Home() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-card rounded-xl p-4 shadow-sm border border-border">
+    <div className="bg-card rounded-xl p-4 shadow-sm border border-border active:bg-gray-50 transition-colors">
       <div className={`w-8 h-8 ${color} rounded-lg flex items-center justify-center text-white text-sm font-bold mb-2`}>
         {value}
       </div>

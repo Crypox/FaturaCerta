@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useObras, addObra, deleteObra } from "@/hooks/useSupabase";
+import { useObras, useObrasTotals, addObra, deleteObra } from "@/hooks/useSupabase";
 
 export default function ObrasPage() {
   const { obras, refetch } = useObras();
+  const { totals, refetch: refetchTotals } = useObrasTotals();
   const [showForm, setShowForm] = useState(false);
   const [nome, setNome] = useState("");
   const [morada, setMorada] = useState("");
@@ -30,6 +31,7 @@ export default function ObrasPage() {
     if (!confirm("Apagar esta obra?")) return;
     await deleteObra(id);
     refetch();
+    refetchTotals();
   }
 
   return (
@@ -95,13 +97,18 @@ export default function ObrasPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {obras.map((obra) => (
+          {obras.map((obra) => {
+            const obraTotal = totals.get(obra.id) || 0;
+            return (
             <div key={obra.id} className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-start justify-between">
                 <Link href={`/obras/${obra.id}`} className="flex-1">
                   <h3 className="font-semibold text-foreground">{obra.nome}</h3>
                   {obra.morada && (
                     <p className="text-sm text-muted mt-0.5">{obra.morada}</p>
+                  )}
+                  {obraTotal > 0 && (
+                    <p className="text-sm font-semibold text-primary mt-1">{obraTotal.toFixed(2)} &euro;</p>
                   )}
                 </Link>
                 <button
@@ -114,7 +121,8 @@ export default function ObrasPage() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

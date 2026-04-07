@@ -255,9 +255,57 @@ export async function assignAllPendingToObra(faturaId: string, obraId: string) {
   if (error) throw error;
 }
 
+// ---- Fatura assignment status ----
+
+export type FaturaStatus = { faturaId: string; total: number; pending: number };
+
+export function useFaturasStatus() {
+  const [statuses, setStatuses] = useState<FaturaStatus[]>([]);
+
+  const refetch = useCallback(async () => {
+    const { data } = await supabase.from("itens_fatura").select("fatura_id, obra_id");
+    if (!data) return;
+    const map = new Map<string, { total: number; pending: number }>();
+    for (const item of data) {
+      const s = map.get(item.fatura_id) || { total: 0, pending: 0 };
+      s.total++;
+      if (!item.obra_id) s.pending++;
+      map.set(item.fatura_id, s);
+    }
+    setStatuses(Array.from(map, ([faturaId, s]) => ({ faturaId, ...s })));
+  }, []);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { statuses, refetch };
+}
+
+// ---- Obra totals ----
+
+export function useObrasTotals() {
+  const [totals, setTotals] = useState<Map<string, number>>(new Map());
+
+  const refetch = useCallback(async () => {
+    const { data } = await supabase.from("itens_fatura").select("obra_id, total").not("obra_id", "is", null);
+    if (!data) return;
+    const map = new Map<string, number>();
+    for (const item of data) {
+      map.set(item.obra_id!, (map.get(item.obra_id!) || 0) + Number(item.total));
+    }
+    setTotals(map);
+  }, []);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { totals, refetch };
+}
+
 // ---- Image URL helper ----
 
-export function getImageUrl(imagemPath: string): string {
-  const { data } = supabase.storage.from("faturas").getPublicUrl(imagemPath);
-  return data.publicUrl;
+export async function getSignedImageUrl(imagemPath: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from("faturas")
+    .createSignedUrl(imagemPath, 3600);
+  if (error || !data) return null;
+  return data.signedUrl;
 }

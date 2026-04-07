@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   useFatura,
@@ -10,7 +10,7 @@ import {
   assignAllPendingToObra,
   deleteFatura,
   deleteItem,
-  getImageUrl,
+  getSignedImageUrl,
 } from "@/hooks/useSupabase";
 
 export default function FaturaDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,11 +43,18 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
     window.location.href = "/faturas";
   }
 
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (fatura?.imagem_path) {
+      getSignedImageUrl(fatura.imagem_path).then(setImageUrl);
+    }
+  }, [fatura?.imagem_path]);
+
   if (fatura === undefined) return <p className="text-center py-8 text-muted">A carregar...</p>;
   if (!fatura) return <p className="text-center py-8 text-muted">Fatura nao encontrada</p>;
 
   const pendentes = itens?.filter((i) => !i.obra_id).length ?? 0;
-  const imageUrl = fatura.imagem_path ? getImageUrl(fatura.imagem_path) : null;
 
   return (
     <div className="px-4 pt-6">

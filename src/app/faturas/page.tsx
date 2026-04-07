@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useFaturas, addFaturaWithItems } from "@/hooks/useSupabase";
+import { useFaturas, useFaturasStatus, addFaturaWithItems } from "@/hooks/useSupabase";
 
 export default function FaturasPage() {
   return (
@@ -16,6 +16,7 @@ export default function FaturasPage() {
 function FaturasContent() {
   const searchParams = useSearchParams();
   const { faturas, refetch } = useFaturas();
+  const { statuses, refetch: refetchStatus } = useFaturasStatus();
   const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -75,6 +76,7 @@ function FaturasContent() {
 
       setScanning(false);
       refetch();
+      refetchStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
@@ -160,22 +162,39 @@ function FaturasContent() {
         </div>
       ) : (
         <div className="space-y-3">
-          {faturas.map((f) => (
-            <Link
-              key={f.id}
-              href={`/faturas/${f.id}`}
-              className="block bg-card border border-border rounded-xl p-4 active:bg-gray-50 transition-colors"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold">{f.fornecedor}</p>
-                  <p className="text-sm text-muted">Fatura: {f.numero}</p>
-                  <p className="text-xs text-muted mt-0.5">{f.data}</p>
+          {faturas.map((f) => {
+            const status = statuses.find((s) => s.faturaId === f.id);
+            const allAssigned = status && status.total > 0 && status.pending === 0;
+            const hasPending = status && status.pending > 0;
+            const cardClass = allAssigned
+              ? "bg-green-50 border-green-200"
+              : hasPending
+                ? "bg-orange-50 border-orange-200"
+                : "bg-card border-border";
+            return (
+              <Link
+                key={f.id}
+                href={`/faturas/${f.id}`}
+                className={`block border rounded-xl p-4 active:opacity-80 transition-colors ${cardClass}`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold">{f.fornecedor}</p>
+                    <p className="text-sm text-muted">Fatura: {f.numero}</p>
+                    <p className="text-xs text-muted mt-0.5">{f.data}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">{f.total.toFixed(2)} &euro;</p>
+                    {status && (
+                      <p className={`text-xs mt-0.5 ${allAssigned ? "text-green-700" : "text-orange-700"}`}>
+                        {allAssigned ? "Tudo atribuido" : `${status.pending}/${status.total} pendentes`}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="font-semibold">{f.total.toFixed(2)} &euro;</p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
