@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
 import { PWARegister } from "@/components/PWARegister";
+import { AuthGuard } from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
   title: "FaturaCerta",
@@ -33,10 +34,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body className="h-full flex flex-col bg-background text-foreground">
-        <main className="flex-1 overflow-y-auto pb-20">
-          {children}
-        </main>
-        <BottomNav />
+        <AuthGuard>
+          <main className="flex-1 overflow-y-auto pb-20">
+            {children}
+          </main>
+          <BottomNav />
+        </AuthGuard>
         <PWARegister />
       </body>
     </html>

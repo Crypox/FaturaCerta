@@ -1,34 +1,27 @@
 "use client";
 
 import { use } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
 import Link from "next/link";
-import { db, type Fatura } from "@/lib/db";
+import { useObra, useItensByObra, useFaturasByIds } from "@/hooks/useSupabase";
 
 export default function ObraDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
 
-  const obra = useLiveQuery(() => db.obras.get(id), [id]);
-  const itens = useLiveQuery(
-    () => db.itensFatura.where("obraId").equals(id).toArray(),
-    [id]
-  );
-  const faturaIds = [...new Set(itens?.map((i) => i.faturaId) ?? [])];
-  const faturas = useLiveQuery(
-    () => (faturaIds.length > 0 ? db.faturas.where("id").anyOf(faturaIds).toArray() : Promise.resolve([] as Fatura[])),
-    [faturaIds.join(",")]
-  );
+  const { obra } = useObra(id);
+  const { itens } = useItensByObra(id);
+  const faturaIds = [...new Set(itens?.map((i) => i.fatura_id) ?? [])];
+  const { faturas } = useFaturasByIds(faturaIds);
 
   function exportCSV() {
     if (!itens || !obra) return;
     const faturaMap = new Map(faturas?.map((f) => [f.id, f]) ?? []);
     const header = "Descricao;Quantidade;Preco Unitario;Total;Fatura;Fornecedor;Data\n";
     const rows = itens.map((item) => {
-      const f = faturaMap.get(item.faturaId);
+      const f = faturaMap.get(item.fatura_id);
       return [
         item.descricao,
         item.quantidade,
-        item.precoUnitario.toFixed(2),
+        item.preco_unitario.toFixed(2),
         item.total.toFixed(2),
         f?.numero ?? "",
         f?.fornecedor ?? "",
@@ -96,14 +89,14 @@ export default function ObraDetailPage({ params }: { params: Promise<{ id: strin
       ) : (
         <div className="space-y-2">
           {itens.map((item) => {
-            const fatura = faturas?.find((f) => f.id === item.faturaId);
+            const fatura = faturas?.find((f) => f.id === item.fatura_id);
             return (
               <div key={item.id} className="bg-card border border-border rounded-xl p-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.descricao}</p>
                     <p className="text-xs text-muted mt-0.5">
-                      {item.quantidade} x {item.precoUnitario.toFixed(2)} &euro;
+                      {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
                     </p>
                     {fatura && (
                       <p className="text-xs text-muted mt-0.5">

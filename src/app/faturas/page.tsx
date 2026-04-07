@@ -3,9 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useLiveQuery } from "dexie-react-hooks";
-import { v4 as uuid } from "uuid";
-import { db, type ItemFatura } from "@/lib/db";
+import { useFaturas, addFaturaWithItems } from "@/hooks/useSupabase";
 
 export default function FaturasPage() {
   return (
@@ -17,7 +15,7 @@ export default function FaturasPage() {
 
 function FaturasContent() {
   const searchParams = useSearchParams();
-  const faturas = useLiveQuery(() => db.faturas.orderBy("criadoEm").reverse().toArray());
+  const { faturas, refetch } = useFaturas();
   const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +32,12 @@ function FaturasContent() {
     setError("");
 
     try {
+      // Get base64 for OCR API
       const base64 = await fileToBase64(file);
+
+      // Get compressed blob for Storage upload
+      const imageBlob = file.type === "application/pdf" ? undefined : await fileToBlob(file);
+
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,36 +54,27 @@ function FaturasContent() {
       }
 
       const data = await res.json();
-      const faturaId = uuid();
 
-      await db.faturas.add({
-        id: faturaId,
-        numero: data.invoiceNumber || "S/N",
-        fornecedor: data.vendor || "Desconhecido",
-        data: data.date || new Date().toISOString().slice(0, 10),
-        total: data.total || 0,
-        imagemBase64: base64,
-        criadoEm: new Date().toISOString(),
-      });
-
-      const itens: ItemFatura[] = (data.lineItems || []).map(
-        (item: { description: string; quantity: number; unitPrice: number; total: number }) => ({
-          id: uuid(),
-          faturaId,
-          descricao: item.description || "Item",
-          quantidade: item.quantity || 1,
-          precoUnitario: item.unitPrice || 0,
-          total: item.total || 0,
-          obraId: null,
-          criadoEm: new Date().toISOString(),
-        })
+      await addFaturaWithItems(
+        {
+          numero: data.invoiceNumber || "S/N",
+          fornecedor: data.vendor || "Desconhecido",
+          data: data.date || new Date().toISOString().slice(0, 10),
+          total: data.total || 0,
+        },
+        (data.lineItems || []).map(
+          (item: { description: string; quantity: number; unitPrice: number; total: number }) => ({
+            description: item.description || "Item",
+            quantity: item.quantity || 1,
+            unitPrice: item.unitPrice || 0,
+            total: item.total || 0,
+          })
+        ),
+        imageBlob
       );
 
-      if (itens.length > 0) {
-        await db.itensFatura.bulkAdd(itens);
-      }
-
       setScanning(false);
+      refetch();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
@@ -189,7 +183,6 @@ function FaturasContent() {
 }
 
 function fileToBase64(file: File): Promise<string> {
-  // PDFs: send as-is
   if (file.type === "application/pdf") {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -199,7 +192,6 @@ function fileToBase64(file: File): Promise<string> {
     });
   }
 
-  // Images: compress to max 1600px and 0.7 quality to stay under Vercel's 4.5MB body limit
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -218,6 +210,39 @@ function fileToBase64(file: File): Promise<string> {
       ctx.drawImage(img, 0, 0, w, h);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
       resolve(dataUrl.split(",")[1]);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function fileToBlob(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1600;
+      let w = img.width;
+      let h = img.height;
+      if (w > MAX || h > MAX) {
+        const ratio = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(img.src);
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to create blob"));
+        },
+        "image/jpeg",
+        0.7
+      );
     };
     img.onerror = reject;
     img.src = URL.createObjectURL(file);

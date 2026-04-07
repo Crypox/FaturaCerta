@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.veryfi.com)",
+      "WebFetch(domain:faq.veryfi.com)",
+      "WebFetch(domain:www.veryfi.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)",
+      "Bash(npx vercel:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://fatura-certa.vercel.app)",
+      "Bash(curl -s -X POST https://fatura-certa.vercel.app/api/scan -H \"Content-Type: application/json\" -d '{\"\"fileName\"\":\"\"test.jpg\"\",\"\"fileData\"\":\"\"dGVzdA==\"\",\"\"fileType\"\":\"\"image/jpeg\"\"}')",
+      "Bash(npm run:*)",
+      "Bash(curl -s -X POST https://fatura-certa.vercel.app/api/scan -H \"Content-Type: application/json\" -d '{\"\"fileName\"\":\"\"test.jpg\"\",\"\"fileData\"\":\"\"dGVzdA==\"\"}')",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)"
+    ]
+  }
+}

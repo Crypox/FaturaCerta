@@ -1,43 +1,46 @@
 "use client";
 
 import { use } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
 import Link from "next/link";
-import { db } from "@/lib/db";
+import {
+  useFatura,
+  useItensByFatura,
+  useObras,
+  updateItemObra,
+  assignAllPendingToObra,
+  deleteFatura,
+  getImageUrl,
+} from "@/hooks/useSupabase";
 
 export default function FaturaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
 
-  const fatura = useLiveQuery(() => db.faturas.get(id), [id]);
-  const itens = useLiveQuery(
-    () => db.itensFatura.where("faturaId").equals(id).toArray(),
-    [id]
-  );
-  const obras = useLiveQuery(() => db.obras.orderBy("nome").toArray());
+  const { fatura } = useFatura(id);
+  const { itens, refetch: refetchItens } = useItensByFatura(id);
+  const { obras } = useObras();
 
   async function assignObra(itemId: string, obraId: string) {
-    await db.itensFatura.update(itemId, { obraId: obraId || null });
+    await updateItemObra(itemId, obraId || null);
+    refetchItens();
   }
 
   async function assignAllToObra(obraId: string) {
-    if (!itens || !obraId) return;
-    const updates = itens
-      .filter((i) => !i.obraId)
-      .map((i) => db.itensFatura.update(i.id, { obraId }));
-    await Promise.all(updates);
+    if (!obraId) return;
+    await assignAllPendingToObra(id, obraId);
+    refetchItens();
   }
 
   async function handleDeleteFatura() {
     if (!confirm("Apagar esta fatura e todos os seus itens?")) return;
-    await db.itensFatura.where("faturaId").equals(id).delete();
-    await db.faturas.delete(id);
+    await deleteFatura(id, fatura?.imagem_path);
     window.location.href = "/faturas";
   }
 
   if (fatura === undefined) return <p className="text-center py-8 text-muted">A carregar...</p>;
   if (!fatura) return <p className="text-center py-8 text-muted">Fatura nao encontrada</p>;
 
-  const pendentes = itens?.filter((i) => !i.obraId).length ?? 0;
+  const pendentes = itens?.filter((i) => !i.obra_id).length ?? 0;
+  const imageUrl = fatura.imagem_path ? getImageUrl(fatura.imagem_path) : null;
 
   return (
     <div className="px-4 pt-6">
@@ -93,14 +96,14 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
       ) : (
         <div className="space-y-3">
           {itens.map((item) => {
-            const obraAtribuida = obras?.find((o) => o.id === item.obraId);
+            const obraAtribuida = obras?.find((o) => o.id === item.obra_id);
             return (
               <div key={item.id} className="bg-card border border-border rounded-xl p-3">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.descricao}</p>
                     <p className="text-xs text-muted mt-0.5">
-                      {item.quantidade} x {item.precoUnitario.toFixed(2)} &euro;
+                      {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
                     </p>
                   </div>
                   <p className="font-semibold text-sm ml-2">{item.total.toFixed(2)} &euro;</p>
@@ -138,13 +141,13 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      {fatura.imagemBase64 && (
+      {imageUrl && (
         <details className="mt-6">
           <summary className="text-sm text-primary font-medium cursor-pointer">
             Ver imagem da fatura
           </summary>
           <img
-            src={`data:image/jpeg;base64,${fatura.imagemBase64}`}
+            src={imageUrl}
             alt="Fatura"
             className="mt-2 w-full rounded-xl border border-border"
           />

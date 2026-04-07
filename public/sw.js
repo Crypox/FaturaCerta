@@ -1,4 +1,4 @@
-const CACHE_NAME = 'faturacerta-v1';
+const CACHE_NAME = 'faturacerta-v2';
 const STATIC_ASSETS = ['/', '/obras', '/faturas'];
 
 self.addEventListener('install', (event) => {
@@ -19,6 +19,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Don't cache Supabase API calls
+  if (event.request.url.includes('supabase.co')) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {

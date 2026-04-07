@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useLiveQuery } from "dexie-react-hooks";
-import { v4 as uuid } from "uuid";
-import { db } from "@/lib/db";
+import { useObras, addObra, deleteObra } from "@/hooks/useSupabase";
 
 export default function ObrasPage() {
-  const obras = useLiveQuery(() => db.obras.orderBy("criadoEm").reverse().toArray());
+  const { obras, refetch } = useObras();
   const [showForm, setShowForm] = useState(false);
   const [nome, setNome] = useState("");
   const [morada, setMorada] = useState("");
@@ -16,23 +14,22 @@ export default function ObrasPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nome.trim()) return;
-    await db.obras.add({
-      id: uuid(),
+    await addObra({
       nome: nome.trim(),
       morada: morada.trim(),
       notas: notas.trim(),
-      criadoEm: new Date().toISOString(),
     });
     setNome("");
     setMorada("");
     setNotas("");
     setShowForm(false);
+    refetch();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Apagar esta obra?")) return;
-    await db.itensFatura.where("obraId").equals(id).modify({ obraId: null });
-    await db.obras.delete(id);
+    await deleteObra(id);
+    refetch();
   }
 
   return (

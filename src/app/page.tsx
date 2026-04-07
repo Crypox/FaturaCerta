@@ -1,24 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { useDashboardCounts } from "@/hooks/useSupabase";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
-  const obras = useLiveQuery(() => db.obras.count());
-  const faturas = useLiveQuery(() => db.faturas.count());
-  const itensAtribuidos = useLiveQuery(() =>
-    db.itensFatura.where("obraId").notEqual("").count()
-  );
-  const itensPendentes = useLiveQuery(() =>
-    db.itensFatura.filter((i) => !i.obraId).count()
-  );
+  const { obras, faturas, itensAtribuidos, itensPendentes } = useDashboardCounts();
 
   return (
     <div className="px-4 pt-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">FaturaCerta</h1>
-        <p className="text-muted text-sm mt-1">Gestao de faturas de obras</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">FaturaCerta</h1>
+          <p className="text-muted text-sm mt-1">Gestao de faturas de obras</p>
+        </div>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="text-xs text-muted border border-border rounded-lg px-3 py-1.5"
+        >
+          Sair
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
