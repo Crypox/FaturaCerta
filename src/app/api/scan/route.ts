@@ -1,20 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const VERYFI_CLIENT_ID = process.env.VERYFI_CLIENT_ID || "";
-const VERYFI_API_KEY = process.env.VERYFI_API_KEY || "";
-const VERYFI_USERNAME = process.env.VERYFI_USERNAME || "";
+export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    if (!VERYFI_CLIENT_ID || !VERYFI_API_KEY || !VERYFI_USERNAME) {
+    const clientId = process.env.VERYFI_CLIENT_ID || "";
+    const apiKey = process.env.VERYFI_API_KEY || "";
+    const username = process.env.VERYFI_USERNAME || "";
+
+    if (!clientId || !apiKey || !username) {
       return NextResponse.json(
-        { error: "Veryfi API nao configurada. Defina VERYFI_CLIENT_ID, VERYFI_USERNAME e VERYFI_API_KEY." },
+        {
+          error: "Veryfi API nao configurada.",
+          debug: {
+            hasClientId: !!clientId,
+            hasApiKey: !!apiKey,
+            hasUsername: !!username,
+          },
+        },
         { status: 500 }
       );
     }
 
     const body = await req.json();
-    const { fileName, fileData, fileType } = body;
+    const { fileName, fileData } = body;
 
     if (!fileData) {
       return NextResponse.json({ error: "Ficheiro em falta" }, { status: 400 });
@@ -26,8 +35,8 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "CLIENT-ID": VERYFI_CLIENT_ID,
-          AUTHORIZATION: `apikey ${VERYFI_USERNAME}:${VERYFI_API_KEY}`,
+          "CLIENT-ID": clientId,
+          AUTHORIZATION: `apikey ${username}:${apiKey}`,
           Accept: "application/json",
         },
         body: JSON.stringify({
@@ -41,9 +50,8 @@ export async function POST(req: NextRequest) {
 
     if (!veryfiResponse.ok) {
       const errText = await veryfiResponse.text();
-      console.error("Veryfi error:", veryfiResponse.status, errText);
       return NextResponse.json(
-        { error: `Erro Veryfi: ${veryfiResponse.status}` },
+        { error: `Erro Veryfi (${veryfiResponse.status}): ${errText}` },
         { status: 502 }
       );
     }
@@ -74,9 +82,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error("Scan error:", err);
+    const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: "Erro interno ao processar fatura" },
+      { error: `Erro interno: ${message}` },
       { status: 500 }
     );
   }
