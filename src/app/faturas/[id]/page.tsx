@@ -116,9 +116,11 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.descricao}</p>
-                    <p className="text-xs text-muted mt-0.5">
-                      {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
-                    </p>
+                    {item.preco_unitario > 0 && (
+                      <p className="text-xs text-muted mt-0.5">
+                        {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 ml-2">
                     <p className="font-semibold text-sm">{item.total.toFixed(2)} &euro;</p>

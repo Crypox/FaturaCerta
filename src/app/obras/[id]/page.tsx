@@ -95,9 +95,11 @@ export default function ObraDetailPage({ params }: { params: Promise<{ id: strin
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.descricao}</p>
-                    <p className="text-xs text-muted mt-0.5">
-                      {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
-                    </p>
+                    {item.preco_unitario > 0 && (
+                      <p className="text-xs text-muted mt-0.5">
+                        {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
+                      </p>
+                    )}
                     {fatura && (
                       <p className="text-xs text-muted mt-0.5">
                         Fatura: {fatura.numero} ({fatura.fornecedor})

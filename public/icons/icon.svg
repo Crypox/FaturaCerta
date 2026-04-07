@@ -1,40 +1,92 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2563eb"/>
-      <stop offset="100%" stop-color="#1e40af"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
     </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <linearGradient id="hat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.15"/>
+    </filter>
+    <filter id="shadow-sm" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
   </defs>
+
   <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <!-- Invoice/document shape -->
-  <rect x="140" y="80" width="232" height="300" rx="20" fill="white" opacity="0.15"/>
-  <rect x="156" y="96" width="232" height="300" rx="20" fill="white" opacity="0.25"/>
-  <rect x="172" y="112" width="232" height="300" rx="20" fill="white" opacity="0.95"/>
-  <!-- Lines on document -->
-  <rect x="204" y="156" width="136" height="8" rx="4" fill="#2563eb" opacity="0.3"/>
-  <rect x="204" y="180" width="100" height="8" rx="4" fill="#2563eb" opacity="0.2"/>
-  <!-- Checkmarks for assigned items -->
-  <circle cx="228" cy="224" r="12" fill="#22c55e" opacity="0.9"/>
-  <path d="M221 224 l5 5 l9-9" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="250" y="218" width="120" height="8" rx="4" fill="#cbd5e1"/>
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
 
-  <circle cx="228" cy="260" r="12" fill="#22c55e" opacity="0.9"/>
-  <path d="M221 260 l5 5 l9-9" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="250" y="254" width="96" height="8" rx="4" fill="#cbd5e1"/>
+  <!-- Subtle pattern dots -->
+  <circle cx="80" cy="80" r="3" fill="white" opacity="0.08"/>
+  <circle cx="160" cy="60" r="2" fill="white" opacity="0.06"/>
+  <circle cx="400" cy="120" r="3" fill="white" opacity="0.07"/>
+  <circle cx="440" cy="200" r="2" fill="white" opacity="0.05"/>
+  <circle cx="100" cy="400" r="2" fill="white" opacity="0.06"/>
 
-  <circle cx="228" cy="296" r="12" fill="#f97316" opacity="0.9"/>
-  <rect x="224" y="292" width="8" height="8" rx="2" fill="white"/>
-  <rect x="250" y="290" width="108" height="8" rx="4" fill="#cbd5e1"/>
+  <!-- Back paper (shadow stack) -->
+  <rect x="128" y="68" width="260" height="330" rx="16" fill="white" opacity="0.12" filter="url(#shadow-sm)"/>
+  <rect x="144" y="82" width="260" height="330" rx="16" fill="white" opacity="0.2" filter="url(#shadow-sm)"/>
 
-  <circle cx="228" cy="332" r="12" fill="#f97316" opacity="0.9"/>
-  <rect x="224" y="328" width="8" height="8" rx="2" fill="white"/>
-  <rect x="250" y="326" width="80" height="8" rx="4" fill="#cbd5e1"/>
+  <!-- Main paper -->
+  <rect x="160" y="96" width="260" height="330" rx="16" fill="url(#paper)" filter="url(#shadow)"/>
 
-  <!-- Hard hat / construction icon -->
-  <g transform="translate(256, 430)">
-    <path d="M-60 10 C-60-30 -40-55 0-55 C40-55 60-30 60 10" fill="#fbbf24" stroke="#f59e0b" stroke-width="4"/>
-    <rect x="-68" y="6" width="136" height="16" rx="8" fill="#f59e0b"/>
-    <rect x="-6" y="-55" width="12" height="20" rx="4" fill="#f59e0b"/>
+  <!-- Paper header line -->
+  <rect x="192" y="128" width="100" height="10" rx="5" fill="#3b82f6" opacity="0.6"/>
+  <rect x="192" y="148" width="160" height="6" rx="3" fill="#94a3b8" opacity="0.4"/>
+
+  <!-- Divider -->
+  <rect x="192" y="170" width="196" height="1" fill="#e2e8f0"/>
+
+  <!-- Item row 1 - assigned (green) -->
+  <circle cx="208" cy="198" r="11" fill="#22c55e"/>
+  <path d="M202 198 l4 4 l8-8" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="228" y="192" width="110" height="7" rx="3.5" fill="#334155" opacity="0.6"/>
+  <rect x="370" y="192" width="40" height="7" rx="3.5" fill="#334155" opacity="0.4"/>
+
+  <!-- Item row 2 - assigned (green) -->
+  <circle cx="208" cy="234" r="11" fill="#22c55e"/>
+  <path d="M202 234 l4 4 l8-8" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="228" y="228" width="90" height="7" rx="3.5" fill="#334155" opacity="0.6"/>
+  <rect x="370" y="228" width="32" height="7" rx="3.5" fill="#334155" opacity="0.4"/>
+
+  <!-- Item row 3 - assigned (green) -->
+  <circle cx="208" cy="270" r="11" fill="#22c55e"/>
+  <path d="M202 270 l4 4 l8-8" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="228" y="264" width="130" height="7" rx="3.5" fill="#334155" opacity="0.6"/>
+  <rect x="370" y="264" width="36" height="7" rx="3.5" fill="#334155" opacity="0.4"/>
+
+  <!-- Item row 4 - pending (orange) -->
+  <circle cx="208" cy="306" r="11" fill="#f97316"/>
+  <rect x="203" y="301" width="10" height="10" rx="2" fill="none" stroke="white" stroke-width="2"/>
+  <rect x="228" y="300" width="100" height="7" rx="3.5" fill="#334155" opacity="0.6"/>
+  <rect x="370" y="300" width="28" height="7" rx="3.5" fill="#334155" opacity="0.4"/>
+
+  <!-- Item row 5 - pending (orange) -->
+  <circle cx="208" cy="342" r="11" fill="#f97316"/>
+  <rect x="203" y="337" width="10" height="10" rx="2" fill="none" stroke="white" stroke-width="2"/>
+  <rect x="228" y="336" width="80" height="7" rx="3.5" fill="#334155" opacity="0.6"/>
+  <rect x="370" y="336" width="34" height="7" rx="3.5" fill="#334155" opacity="0.4"/>
+
+  <!-- Divider -->
+  <rect x="192" y="366" width="196" height="1" fill="#e2e8f0"/>
+
+  <!-- Total line -->
+  <rect x="310" y="382" width="48" height="8" rx="4" fill="#1e40af" opacity="0.7"/>
+  <rect x="370" y="382" width="40" height="8" rx="4" fill="#1e40af" opacity="0.5"/>
+
+  <!-- Construction hard hat -->
+  <g transform="translate(256, 446)" filter="url(#shadow-sm)">
+    <path d="M-52 8 C-52-24 -36-48 0-48 C36-48 52-24 52 8" fill="url(#hat)"/>
+    <rect x="-60" y="4" width="120" height="14" rx="7" fill="#f59e0b"/>
+    <rect x="-5" y="-48" width="10" height="16" rx="5" fill="#f59e0b"/>
+    <!-- Hat shine -->
+    <path d="M-36-10 C-36-30 -20-40 0-40" stroke="white" stroke-width="2" fill="none" opacity="0.3" stroke-linecap="round"/>
   </g>
 </svg>
