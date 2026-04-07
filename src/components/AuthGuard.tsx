@@ -77,9 +77,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     <div className="flex items-center justify-center h-screen px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-            FC
-          </div>
+          <img src="/icons/icon.svg" alt="FaturaCerta" className="w-20 h-20 mx-auto mb-4 rounded-2xl" />
           <h1 className="text-2xl font-bold">FaturaCerta</h1>
           <p className="text-muted text-sm mt-1">Gestao de faturas de obras</p>
         </div>
