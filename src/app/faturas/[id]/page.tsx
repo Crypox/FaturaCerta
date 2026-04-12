@@ -6,7 +6,9 @@ import {
   useFatura,
   useItensByFatura,
   useObras,
-  updateItemObra,
+  useAtribuicoesByFatura,
+  addAtribuicao,
+  removeAtribuicao,
   assignAllPendingToObra,
   deleteFatura,
   deleteItem,
@@ -19,29 +21,7 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
   const { fatura } = useFatura(id);
   const { itens, refetch: refetchItens } = useItensByFatura(id);
   const { obras } = useObras();
-
-  async function assignObra(itemId: string, obraId: string) {
-    await updateItemObra(itemId, obraId || null);
-    refetchItens();
-  }
-
-  async function assignAllToObra(obraId: string) {
-    if (!obraId) return;
-    await assignAllPendingToObra(id, obraId);
-    refetchItens();
-  }
-
-  async function handleDeleteItem(itemId: string) {
-    if (!confirm("Apagar este item?")) return;
-    await deleteItem(itemId);
-    refetchItens();
-  }
-
-  async function handleDeleteFatura() {
-    if (!confirm("Apagar esta fatura e todos os seus itens?")) return;
-    await deleteFatura(id, fatura?.imagem_path);
-    window.location.href = "/faturas";
-  }
+  const { atribuicoes, refetch: refetchAtribs } = useAtribuicoesByFatura(id);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
@@ -51,10 +31,44 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
     }
   }, [fatura?.imagem_path]);
 
+  async function handleAddAtribuicao(itemId: string, obraId: string, quantidade: number) {
+    await addAtribuicao(itemId, obraId, quantidade);
+    refetchAtribs();
+  }
+
+  async function handleRemoveAtribuicao(atribuicaoId: string) {
+    await removeAtribuicao(atribuicaoId);
+    refetchAtribs();
+  }
+
+  async function handleAssignAll(obraId: string) {
+    if (!obraId) return;
+    await assignAllPendingToObra(id, obraId);
+    refetchAtribs();
+  }
+
+  async function handleDeleteItem(itemId: string) {
+    if (!confirm("Apagar este item?")) return;
+    await deleteItem(itemId);
+    refetchItens();
+    refetchAtribs();
+  }
+
+  async function handleDeleteFatura() {
+    if (!confirm("Apagar esta fatura e todos os seus itens?")) return;
+    await deleteFatura(id, fatura?.imagem_path);
+    window.location.href = "/faturas";
+  }
+
   if (fatura === undefined) return <p className="text-center py-8 text-muted">A carregar...</p>;
   if (!fatura) return <p className="text-center py-8 text-muted">Fatura nao encontrada</p>;
 
-  const pendentes = itens?.filter((i) => !i.obra_id).length ?? 0;
+  // Calculate pending items
+  const pendentes = itens?.filter((item) => {
+    const itemAtribs = atribuicoes?.filter((a) => a.item_fatura_id === item.id) ?? [];
+    const assigned = itemAtribs.reduce((sum, a) => sum + Number(a.quantidade), 0);
+    return assigned < Number(item.quantidade);
+  }).length ?? 0;
 
   return (
     <div className="px-4 pt-6">
@@ -85,7 +99,7 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
           </p>
           <select
             onChange={(e) => {
-              if (e.target.value) assignAllToObra(e.target.value);
+              if (e.target.value) handleAssignAll(e.target.value);
               e.target.value = "";
             }}
             defaultValue=""
@@ -110,25 +124,26 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
       ) : (
         <div className="space-y-3">
           {itens.map((item) => {
-            const obraAtribuida = obras?.find((o) => o.id === item.obra_id);
+            const itemAtribs = atribuicoes?.filter((a) => a.item_fatura_id === item.id) ?? [];
+            const totalAssigned = itemAtribs.reduce((sum, a) => sum + Number(a.quantidade), 0);
+            const remaining = Number(item.quantidade) - totalAssigned;
+            const fullyAssigned = remaining <= 0;
+
             return (
-              <div key={item.id} className="bg-card border border-border rounded-xl p-3">
-                <div className="flex justify-between items-start mb-2">
+              <div key={item.id} className={`border rounded-xl p-3 ${fullyAssigned ? "bg-green-50 border-green-200" : "bg-card border-border"}`}>
+                {/* Header */}
+                <div className="flex justify-between items-start mb-1">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.descricao}</p>
                     {item.preco_unitario > 0 && (
-                      <p className="text-xs text-muted mt-0.5">
+                      <p className="text-xs text-muted">
                         {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 ml-2">
                     <p className="font-semibold text-sm">{item.total.toFixed(2)} &euro;</p>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="text-danger p-0.5"
-                      title="Apagar item"
-                    >
+                    <button onClick={() => handleDeleteItem(item.id)} className="text-danger p-0.5" title="Apagar item">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
                         <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
                       </svg>
@@ -136,32 +151,36 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {obraAtribuida ? (
-                    <div className="flex items-center justify-between w-full bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
-                      <span className="text-xs text-green-800 font-medium">
-                        {obraAtribuida.nome}
-                      </span>
-                      <button
-                        onClick={() => assignObra(item.id, "")}
-                        className="text-xs text-muted ml-2"
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  ) : (
-                    <select
-                      onChange={(e) => assignObra(item.id, e.target.value)}
-                      defaultValue=""
-                      className="w-full border border-border rounded-lg px-3 py-1.5 text-sm bg-white"
-                    >
-                      <option value="" disabled>Atribuir a obra...</option>
-                      {obras?.map((o) => (
-                        <option key={o.id} value={o.id}>{o.nome}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                {/* Progress */}
+                <p className={`text-xs mb-2 ${fullyAssigned ? "text-green-700" : "text-orange-700"}`}>
+                  {fullyAssigned ? "Tudo atribuido" : `${totalAssigned}/${item.quantidade} atribuidos`}
+                </p>
+
+                {/* Existing assignments */}
+                {itemAtribs.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {itemAtribs.map((a) => (
+                      <div key={a.id} className="flex items-center gap-1 bg-green-100 border border-green-300 rounded-md px-2 py-0.5 text-xs">
+                        <span className="text-green-800 font-medium">
+                          {a.obra_nome}: {Number(a.quantidade)} un.
+                        </span>
+                        <button onClick={() => handleRemoveAtribuicao(a.id)} className="text-green-600 hover:text-red-500 ml-0.5">
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Assignment form */}
+                {remaining > 0 && obras && obras.length > 0 && (
+                  <AssignForm
+                    obras={obras}
+                    remaining={remaining}
+                    showQtyInput={Number(item.quantidade) > 1}
+                    onAssign={(obraId, qty) => handleAddAtribuicao(item.id, obraId, qty)}
+                  />
+                )}
               </div>
             );
           })}
@@ -173,13 +192,66 @@ export default function FaturaDetailPage({ params }: { params: Promise<{ id: str
           <summary className="text-sm text-primary font-medium cursor-pointer">
             Ver imagem da fatura
           </summary>
-          <img
-            src={imageUrl}
-            alt="Fatura"
-            className="mt-2 w-full rounded-xl border border-border"
-          />
+          <img src={imageUrl} alt="Fatura" className="mt-2 w-full rounded-xl border border-border" />
         </details>
       )}
+    </div>
+  );
+}
+
+function AssignForm({
+  obras,
+  remaining,
+  showQtyInput,
+  onAssign,
+}: {
+  obras: { id: string; nome: string }[];
+  remaining: number;
+  showQtyInput: boolean;
+  onAssign: (obraId: string, qty: number) => void;
+}) {
+  const [obraId, setObraId] = useState("");
+  const [qty, setQty] = useState(remaining);
+
+  useEffect(() => { setQty(remaining); }, [remaining]);
+
+  function handleSubmit() {
+    if (!obraId || qty <= 0) return;
+    onAssign(obraId, Math.min(qty, remaining));
+    setObraId("");
+    setQty(remaining);
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={obraId}
+        onChange={(e) => setObraId(e.target.value)}
+        className="flex-1 border border-border rounded-lg px-2 py-1.5 text-sm bg-white min-w-0"
+      >
+        <option value="" disabled>Obra...</option>
+        {obras.map((o) => (
+          <option key={o.id} value={o.id}>{o.nome}</option>
+        ))}
+      </select>
+      {showQtyInput && (
+        <input
+          type="number"
+          value={qty}
+          onChange={(e) => setQty(Number(e.target.value))}
+          min={1}
+          max={remaining}
+          step="any"
+          className="w-16 border border-border rounded-lg px-2 py-1.5 text-sm bg-white text-center"
+        />
+      )}
+      <button
+        onClick={handleSubmit}
+        disabled={!obraId || qty <= 0}
+        className="bg-primary text-white rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-40 whitespace-nowrap"
+      >
+        +
+      </button>
     </div>
   );
 }

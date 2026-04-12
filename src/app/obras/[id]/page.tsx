@@ -18,11 +18,12 @@ export default function ObraDetailPage({ params }: { params: Promise<{ id: strin
     const header = "Descricao;Quantidade;Preco Unitario;Total;Fatura;Fornecedor;Data\n";
     const rows = itens.map((item) => {
       const f = faturaMap.get(item.fatura_id);
+      const assignedTotal = item.quantidade_atribuida * item.preco_unitario;
       return [
         item.descricao,
-        item.quantidade,
+        item.quantidade_atribuida,
         item.preco_unitario.toFixed(2),
-        item.total.toFixed(2),
+        assignedTotal.toFixed(2),
         f?.numero ?? "",
         f?.fornecedor ?? "",
         f?.data ?? "",
@@ -41,7 +42,7 @@ export default function ObraDetailPage({ params }: { params: Promise<{ id: strin
   if (obra === undefined) return <p className="text-center py-8 text-muted">A carregar...</p>;
   if (!obra) return <p className="text-center py-8 text-muted">Obra nao encontrada</p>;
 
-  const totalObra = itens?.reduce((sum, i) => sum + i.total, 0) ?? 0;
+  const totalObra = itens?.reduce((sum, i) => sum + (i.quantidade_atribuida * i.preco_unitario), 0) ?? 0;
 
   return (
     <div className="px-4 pt-6">
@@ -90,14 +91,18 @@ export default function ObraDetailPage({ params }: { params: Promise<{ id: strin
         <div className="space-y-2">
           {itens.map((item) => {
             const fatura = faturas?.find((f) => f.id === item.fatura_id);
+            const assignedTotal = item.quantidade_atribuida * item.preco_unitario;
             return (
-              <div key={item.id} className="bg-card border border-border rounded-xl p-3">
+              <div key={item.atribuicao_id} className="bg-card border border-border rounded-xl p-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.descricao}</p>
                     {item.preco_unitario > 0 && (
                       <p className="text-xs text-muted mt-0.5">
-                        {item.quantidade} x {item.preco_unitario.toFixed(2)} &euro;
+                        {item.quantidade_atribuida} x {item.preco_unitario.toFixed(2)} &euro;
+                        {item.quantidade_atribuida !== item.quantidade && (
+                          <span className="text-muted"> (de {item.quantidade} total)</span>
+                        )}
                       </p>
                     )}
                     {fatura && (
@@ -106,7 +111,7 @@ export default function ObraDetailPage({ params }: { params: Promise<{ id: strin
                       </p>
                     )}
                   </div>
-                  <p className="font-semibold text-sm ml-2">{item.total.toFixed(2)} &euro;</p>
+                  <p className="font-semibold text-sm ml-2">{assignedTotal.toFixed(2)} &euro;</p>
                 </div>
               </div>
             );

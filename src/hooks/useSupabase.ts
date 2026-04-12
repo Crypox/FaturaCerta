@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase, getUserId, type Obra, type Fatura, type ItemFatura } from "@/lib/supabase";
+import { supabase, getUserId, type Obra, type Fatura, type ItemFatura, type Atribuicao } from "@/lib/supabase";
 
 // ---- Dashboard ----
 
@@ -12,16 +12,30 @@ export function useDashboardCounts() {
   const [itensPendentes, setItensPendentes] = useState<number | undefined>(undefined);
 
   const refetch = useCallback(async () => {
-    const [o, f, a, p] = await Promise.all([
+    const [o, f, items, atribs] = await Promise.all([
       supabase.from("obras").select("*", { count: "exact", head: true }),
       supabase.from("faturas").select("*", { count: "exact", head: true }),
-      supabase.from("itens_fatura").select("*", { count: "exact", head: true }).not("obra_id", "is", null),
-      supabase.from("itens_fatura").select("*", { count: "exact", head: true }).is("obra_id", null),
+      supabase.from("itens_fatura").select("id, quantidade"),
+      supabase.from("atribuicoes").select("item_fatura_id, quantidade"),
     ]);
+
     setObras(o.count ?? 0);
     setFaturas(f.count ?? 0);
-    setItensAtribuidos(a.count ?? 0);
-    setItensPendentes(p.count ?? 0);
+
+    const assignedMap = new Map<string, number>();
+    for (const a of atribs.data ?? []) {
+      assignedMap.set(a.item_fatura_id, (assignedMap.get(a.item_fatura_id) || 0) + Number(a.quantidade));
+    }
+
+    let fullyAssigned = 0;
+    let pending = 0;
+    for (const item of items.data ?? []) {
+      const assigned = assignedMap.get(item.id) || 0;
+      if (assigned >= Number(item.quantidade)) fullyAssigned++;
+      else pending++;
+    }
+    setItensAtribuidos(fullyAssigned);
+    setItensPendentes(pending);
   }, []);
 
   useEffect(() => { refetch(); }, [refetch]);
@@ -76,7 +90,7 @@ export async function addObra(obra: { nome: string; morada: string; notas: strin
 }
 
 export async function deleteObra(id: string) {
-  await supabase.from("itens_fatura").update({ obra_id: null }).eq("obra_id", id);
+  // atribuicoes are cascade-deleted
   const { error } = await supabase.from("obras").delete().eq("id", id);
   if (error) throw error;
 }
@@ -123,7 +137,6 @@ export async function addFaturaWithItems(
 ): Promise<string> {
   const userId = await getUserId();
 
-  // Insert fatura
   const { data: faturaRow, error: faturaError } = await supabase
     .from("faturas")
     .insert({
@@ -140,7 +153,6 @@ export async function addFaturaWithItems(
 
   const faturaId = faturaRow.id;
 
-  // Upload image to Storage
   if (imageBlob) {
     const path = `${userId}/${faturaId}.jpg`;
     await supabase.storage.from("faturas").upload(path, imageBlob, {
@@ -150,7 +162,6 @@ export async function addFaturaWithItems(
     await supabase.from("faturas").update({ imagem_path: path }).eq("id", faturaId);
   }
 
-  // Insert items
   if (items.length > 0) {
     const rows = items.map((item) => ({
       user_id: userId,
@@ -168,37 +179,21 @@ export async function addFaturaWithItems(
 }
 
 export async function deleteFatura(id: string, imagemPath?: string | null) {
-  // Delete image from Storage
   if (imagemPath) {
     await supabase.storage.from("faturas").remove([imagemPath]);
   }
-  // Items are cascade-deleted by the database
+  // itens_fatura cascade-deleted, atribuicoes cascade from itens
   const { error } = await supabase.from("faturas").delete().eq("id", id);
   if (error) throw error;
 }
 
 export async function deleteItem(itemId: string) {
+  // atribuicoes cascade-deleted
   const { error } = await supabase.from("itens_fatura").delete().eq("id", itemId);
   if (error) throw error;
 }
 
-// ---- Itens ----
-
-export function useItensByObra(obraId: string) {
-  const [itens, setItens] = useState<ItemFatura[] | undefined>(undefined);
-
-  const refetch = useCallback(async () => {
-    const { data } = await supabase
-      .from("itens_fatura")
-      .select("*")
-      .eq("obra_id", obraId);
-    setItens(data ?? []);
-  }, [obraId]);
-
-  useEffect(() => { refetch(); }, [refetch]);
-
-  return { itens, refetch };
-}
+// ---- Itens by fatura ----
 
 export function useItensByFatura(faturaId: string) {
   const [itens, setItens] = useState<ItemFatura[] | undefined>(undefined);
@@ -216,15 +211,131 @@ export function useItensByFatura(faturaId: string) {
   return { itens, refetch };
 }
 
+// ---- Atribuicoes ----
+
+export type AtribuicaoComObra = Atribuicao & { obra_nome: string };
+
+export function useAtribuicoesByFatura(faturaId: string) {
+  const [atribuicoes, setAtribuicoes] = useState<AtribuicaoComObra[] | undefined>(undefined);
+
+  const refetch = useCallback(async () => {
+    const { data: items } = await supabase
+      .from("itens_fatura")
+      .select("id")
+      .eq("fatura_id", faturaId);
+    if (!items || items.length === 0) { setAtribuicoes([]); return; }
+
+    const itemIds = items.map((i) => i.id);
+    const { data } = await supabase
+      .from("atribuicoes")
+      .select("*, obras(nome)")
+      .in("item_fatura_id", itemIds);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = (data ?? []).map((a: any) => ({
+      ...a,
+      obra_nome: a.obras?.nome ?? "?",
+      obras: undefined,
+    }));
+    setAtribuicoes(result);
+  }, [faturaId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { atribuicoes, refetch };
+}
+
+export async function addAtribuicao(itemFaturaId: string, obraId: string, quantidade: number) {
+  const userId = await getUserId();
+  const { error } = await supabase.from("atribuicoes").insert({
+    user_id: userId,
+    item_fatura_id: itemFaturaId,
+    obra_id: obraId,
+    quantidade,
+  });
+  if (error) throw error;
+}
+
+export async function removeAtribuicao(atribuicaoId: string) {
+  const { error } = await supabase.from("atribuicoes").delete().eq("id", atribuicaoId);
+  if (error) throw error;
+}
+
+export async function assignAllPendingToObra(faturaId: string, obraId: string) {
+  const userId = await getUserId();
+
+  const { data: items } = await supabase
+    .from("itens_fatura")
+    .select("id, quantidade")
+    .eq("fatura_id", faturaId);
+  if (!items || items.length === 0) return;
+
+  const itemIds = items.map((i) => i.id);
+  const { data: existing } = await supabase
+    .from("atribuicoes")
+    .select("item_fatura_id, quantidade")
+    .in("item_fatura_id", itemIds);
+
+  const assignedMap = new Map<string, number>();
+  for (const a of existing ?? []) {
+    assignedMap.set(a.item_fatura_id, (assignedMap.get(a.item_fatura_id) || 0) + Number(a.quantidade));
+  }
+
+  const newRows = items
+    .map((item) => {
+      const assigned = assignedMap.get(item.id) || 0;
+      const remaining = Number(item.quantidade) - assigned;
+      if (remaining <= 0) return null;
+      return {
+        user_id: userId,
+        item_fatura_id: item.id,
+        obra_id: obraId,
+        quantidade: remaining,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (newRows.length > 0) {
+    const { error } = await supabase.from("atribuicoes").insert(newRows);
+    if (error) throw error;
+  }
+}
+
+// ---- Itens by obra (with atribuicao info) ----
+
+export type ItemComAtribuicao = ItemFatura & { quantidade_atribuida: number; atribuicao_id: string };
+
+export function useItensByObra(obraId: string) {
+  const [itens, setItens] = useState<ItemComAtribuicao[] | undefined>(undefined);
+
+  const refetch = useCallback(async () => {
+    const { data } = await supabase
+      .from("atribuicoes")
+      .select("id, quantidade, item_fatura_id, itens_fatura(*)")
+      .eq("obra_id", obraId);
+
+    if (!data) { setItens([]); return; }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: ItemComAtribuicao[] = data.map((a: any) => ({
+      ...a.itens_fatura,
+      quantidade_atribuida: Number(a.quantidade),
+      atribuicao_id: a.id,
+    }));
+    setItens(result);
+  }, [obraId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { itens, refetch };
+}
+
 export function useFaturasByIds(ids: string[]) {
   const [faturas, setFaturas] = useState<Fatura[] | undefined>(undefined);
   const key = ids.join(",");
 
   const refetch = useCallback(async () => {
-    if (ids.length === 0) {
-      setFaturas([]);
-      return;
-    }
+    if (ids.length === 0) { setFaturas([]); return; }
     const { data } = await supabase
       .from("faturas")
       .select("*")
@@ -238,23 +349,6 @@ export function useFaturasByIds(ids: string[]) {
   return { faturas, refetch };
 }
 
-export async function updateItemObra(itemId: string, obraId: string | null) {
-  const { error } = await supabase
-    .from("itens_fatura")
-    .update({ obra_id: obraId || null })
-    .eq("id", itemId);
-  if (error) throw error;
-}
-
-export async function assignAllPendingToObra(faturaId: string, obraId: string) {
-  const { error } = await supabase
-    .from("itens_fatura")
-    .update({ obra_id: obraId })
-    .eq("fatura_id", faturaId)
-    .is("obra_id", null);
-  if (error) throw error;
-}
-
 // ---- Fatura assignment status ----
 
 export type FaturaStatus = { faturaId: string; total: number; pending: number };
@@ -263,13 +357,26 @@ export function useFaturasStatus() {
   const [statuses, setStatuses] = useState<FaturaStatus[]>([]);
 
   const refetch = useCallback(async () => {
-    const { data } = await supabase.from("itens_fatura").select("fatura_id, obra_id");
-    if (!data) return;
+    const { data: items } = await supabase
+      .from("itens_fatura")
+      .select("id, fatura_id, quantidade");
+    if (!items) return;
+
+    const { data: atribs } = await supabase
+      .from("atribuicoes")
+      .select("item_fatura_id, quantidade");
+
+    const assignedMap = new Map<string, number>();
+    for (const a of atribs ?? []) {
+      assignedMap.set(a.item_fatura_id, (assignedMap.get(a.item_fatura_id) || 0) + Number(a.quantidade));
+    }
+
     const map = new Map<string, { total: number; pending: number }>();
-    for (const item of data) {
+    for (const item of items) {
       const s = map.get(item.fatura_id) || { total: 0, pending: 0 };
       s.total++;
-      if (!item.obra_id) s.pending++;
+      const assigned = assignedMap.get(item.id) || 0;
+      if (assigned < Number(item.quantidade)) s.pending++;
       map.set(item.fatura_id, s);
     }
     setStatuses(Array.from(map, ([faturaId, s]) => ({ faturaId, ...s })));
@@ -286,11 +393,16 @@ export function useObrasTotals() {
   const [totals, setTotals] = useState<Map<string, number>>(new Map());
 
   const refetch = useCallback(async () => {
-    const { data } = await supabase.from("itens_fatura").select("obra_id, total").not("obra_id", "is", null);
+    const { data } = await supabase
+      .from("atribuicoes")
+      .select("obra_id, quantidade, itens_fatura(preco_unitario)");
+
     if (!data) return;
     const map = new Map<string, number>();
-    for (const item of data) {
-      map.set(item.obra_id!, (map.get(item.obra_id!) || 0) + Number(item.total));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const a of data as any[]) {
+      const total = Number(a.quantidade) * (Number(a.itens_fatura?.preco_unitario) || 0);
+      map.set(a.obra_id, (map.get(a.obra_id) || 0) + total);
     }
     setTotals(map);
   }, []);

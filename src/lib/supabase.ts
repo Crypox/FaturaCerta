@@ -33,7 +33,15 @@ export interface ItemFatura {
   quantidade: number;
   preco_unitario: number;
   total: number;
-  obra_id: string | null;
+  criado_em: string;
+}
+
+export interface Atribuicao {
+  id: string;
+  user_id: string;
+  item_fatura_id: string;
+  obra_id: string;
+  quantidade: number;
   criado_em: string;
 }
 
